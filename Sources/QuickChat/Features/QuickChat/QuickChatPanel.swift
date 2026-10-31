@@ -22,6 +22,10 @@ final class QuickChatController: NSObject {
     private var previousApp: NSRunningApplication?
     /// Where each in-flight download is being written, for "reveal in Finder" when it finishes.
     private var downloadDestinations: [ObjectIdentifier: URL] = [:]
+    /// Recent automatic reloads after the web content process died, to stop a crash loop.
+    private var crashReloads: [Date] = []
+    /// Set when crash reloads were given up; the page reloads the next time the panel shows.
+    private var reloadOnShow = false
 
     var isVisible: Bool { panel?.isVisible == true }
 
@@ -52,6 +56,11 @@ final class QuickChatController: NSObject {
         let panel = self.panel ?? makePanel()
         let front = NSWorkspace.shared.frontmostApplication
         if front?.processIdentifier != ProcessInfo.processInfo.processIdentifier { previousApp = front }
+        if reloadOnShow, let webView {
+            reloadOnShow = false
+            crashReloads = []
+            reload(webView)
+        }
         NSApp.activate()
         panel.makeKeyAndOrderFront(nil)
         panel.makeFirstResponder(webView)
@@ -72,6 +81,8 @@ final class QuickChatController: NSObject {
         panel?.contentView = nil
         panel = nil
         webView = nil
+        crashReloads = []
+        reloadOnShow = false
     }
 
     /// Signs out by clearing the panel's website data (cookies, storage).
@@ -235,8 +246,21 @@ extension QuickChatController: WKUIDelegate, WKNavigationDelegate, WKDownloadDel
 
     /// macOS may kill the web content process (often while hidden, under memory pressure), which
     /// leaves the view blank; reload right away so it's ready before the panel is shown again.
+    /// A page that keeps crashing it (3 times in a minute) is left until the panel is next shown.
     func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
+        let now = Date()
+        crashReloads.removeAll { now.timeIntervalSince($0) > 60 }
+        guard crashReloads.count < 3 else {
+            log.error("Web content process keeps terminating; reloading when the panel is next shown")
+            reloadOnShow = true
+            return
+        }
+        crashReloads.append(now)
         log.info("Web content process terminated; reloading")
+        reload(webView)
+    }
+
+    private func reload(_ webView: WKWebView) {
         if webView.url != nil { webView.reload() } else { webView.load(URLRequest(url: Self.chatURL)) }
     }
 
