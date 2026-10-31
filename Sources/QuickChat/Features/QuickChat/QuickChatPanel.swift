@@ -6,9 +6,13 @@ import WebKit
 @MainActor
 final class QuickChatController: NSObject {
     private static let chatURL = URL(string: "https://chatgpt.com/")!
-    /// Hosts that stay inside the panel (chat + sign-in flows); other links open in the browser.
-    private static let inPanelHosts = ["chatgpt.com", "openai.com", "auth0.com", "google.com", "apple.com",
-                                       "microsoftonline.com", "live.com", "microsoft.com"]
+    /// Hosts (and their subdomains) that stay inside the panel: the chat and its sign-in pages.
+    /// Kept to the sign-in hosts themselves, so links in answers (e.g. developer.apple.com)
+    /// open in the browser instead of replacing the chat.
+    private static let inPanelHosts = ["chatgpt.com", "auth.openai.com", "auth0.openai.com", "auth0.com",
+                                       "accounts.google.com", "appleid.apple.com", "idmsa.apple.com",
+                                       "login.microsoftonline.com", "login.live.com", "login.microsoft.com",
+                                       "account.live.com"]
     private static let safariUserAgent =
         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Safari/605.1.15"
 
