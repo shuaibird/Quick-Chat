@@ -64,6 +64,15 @@ final class ShortcutRecorderWindow: NSObject, NSWindowDelegate {
 
     func close() { window?.close() }
 
+    /// Whether the window is open (a recording session is in progress).
+    var isOpen: Bool { window?.isVisible == true }
+
+    /// Brings the open window forward without starting a new session.
+    func bringToFront() {
+        NSApp.activate()
+        window?.makeKeyAndOrderFront(nil)
+    }
+
     /// Standard editing and window combos (see `EditMenu`, `QuickChatPanel`); taking one would
     /// break it in the panel, or everywhere for the global shortcut. Matched by key character,
     /// as menu key equivalents are, so they hold on any keyboard layout.

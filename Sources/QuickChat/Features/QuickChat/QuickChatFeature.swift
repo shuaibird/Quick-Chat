@@ -68,6 +68,8 @@ final class QuickChatFeature: Feature {
     }
 
     private func editShortcut() {
+        // Already open: keep that session, whose `previous` is the saved shortcut to revert to.
+        if recorder.isOpen { return recorder.bringToFront() }
         hotKey?.unregister() // so the current shortcut can be pressed in the recorder
         hotKey = nil
         let previous = shortcut
