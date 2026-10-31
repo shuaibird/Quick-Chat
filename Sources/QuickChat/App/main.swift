@@ -2,7 +2,7 @@ import AppKit
 
 MainActor.assumeIsolated {
     #if DEBUG
-    if let suite = ProcessInfo.processInfo.environment["QUICKCHAT_SELFTEST"], ["keymap", "showmini"].contains(suite) {
+    if ProcessInfo.processInfo.environment["QUICKCHAT_SELFTEST"] == "keymap" {
         exit(KeymapSelfTest.run() ? 0 : 1)
     }
     // Opens Quick Chat panel without enabling any feature (no keymap changes).

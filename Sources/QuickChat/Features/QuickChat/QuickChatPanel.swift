@@ -19,9 +19,7 @@ final class QuickChatController: NSObject {
     /// Where each in-flight download is being written, for "reveal in Finder" when it finishes.
     private var downloadDestinations: [ObjectIdentifier: URL] = [:]
 
-    var isVisible: Bool { panel?.isVisible == true }
-
-    /// Local shortcut (only while the panel is key) that triggers `resetSize()`.
+    /// Local shortcut (only while the panel is key) that triggers the panel's `resetSize()`.
     var resetSizeShortcut = Shortcut.loadResetSize() {
         didSet { panel?.resetSizeShortcut = resetSizeShortcut }
     }
@@ -30,9 +28,6 @@ final class QuickChatController: NSObject {
     var maximizeShortcut = Shortcut.loadMaximize() {
         didSet { panel?.maximizeShortcut = maximizeShortcut }
     }
-
-    /// Resizes the panel back to `QuickChatPanel.defaultSize` (no-op if it was never built).
-    func resetSize() { panel?.resetSize() }
 
     /// Hides the panel whenever it's visible (focused or not), otherwise shows it. Focus goes
     /// back to the previous app only if the panel had it.
