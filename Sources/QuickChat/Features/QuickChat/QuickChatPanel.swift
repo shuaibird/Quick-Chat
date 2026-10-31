@@ -11,6 +11,15 @@ final class QuickChatController: NSObject {
                                        "microsoftonline.com", "live.com", "microsoft.com"]
     private static let safariUserAgent =
         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Safari/605.1.15"
+    /// Passkeys can't work in this web view: macOS's passkey service refuses WebAuthn requests
+    /// from apps without Apple's web-browser passkey entitlement ("Attempted to perform
+    /// authorization from process without application identifier"), which only browsers get.
+    /// Sites offer passkeys only when WebAuthn looks available, so hide it: sign-in pages then
+    /// go to passwords and other methods instead of a passkey prompt that always fails.
+    static let hideWebAuthnScript = """
+        delete window.PublicKeyCredential;
+        Object.defineProperty(Navigator.prototype, "credentials", { get: () => undefined, configurable: true });
+        """
 
     private let log = Log.make("QuickChat")
     private var panel: QuickChatPanel?
@@ -122,6 +131,8 @@ final class QuickChatController: NSObject {
         let config = WKWebViewConfiguration()
         config.websiteDataStore = .default()
         config.mediaTypesRequiringUserActionForPlayback = []
+        config.userContentController.addUserScript(WKUserScript(source: Self.hideWebAuthnScript,
+                                                                injectionTime: .atDocumentStart, forMainFrameOnly: false))
         let webView = WKWebView(frame: .zero, configuration: config)
         webView.customUserAgent = Self.safariUserAgent
         webView.uiDelegate = self
