@@ -51,6 +51,8 @@ struct Shortcut: Codable, Equatable {
 
     /// Parses an Electron accelerator as ChatGPT stores it (e.g. `Alt+Space`,
     /// `Control+Alt+Shift+4`, `CmdOrCtrl+K`). Nil for keys this type doesn't know.
+    /// Character keys resolve to the key that types them in the current keyboard layout, as
+    /// Chromium's global shortcuts do (`kLayoutAwareGlobalHotkeys`), else to the US position.
     init?(accelerator: String) {
         var carbon: UInt32 = 0
         var key: String?
@@ -63,8 +65,31 @@ struct Shortcut: Codable, Equatable {
             default: key = part
             }
         }
-        guard let key, let code = Self.keyCodes[key] else { return nil }
+        guard let key, let fixed = Self.keyCodes[key] else { return nil }
+        let code = key.count == 1 ? Self.layoutKeyCode(typing: key) ?? fixed : fixed
         self.init(keyCode: UInt32(code), carbonModifiers: carbon, keyLabel: key.uppercased())
+    }
+
+    /// The key that types `character` without modifiers in the current keyboard layout
+    /// (dead keys skipped), like Chromium's lookup; nil if no key does.
+    private static func layoutKeyCode(typing character: String) -> Int? {
+        guard let source = TISCopyCurrentKeyboardLayoutInputSource()?.takeRetainedValue(),
+              let raw = TISGetInputSourceProperty(source, kTISPropertyUnicodeKeyLayoutData) else { return nil }
+        let data = Unmanaged<CFData>.fromOpaque(raw).takeUnretainedValue() as Data
+        return data.withUnsafeBytes { buffer -> Int? in
+            guard let layout = buffer.baseAddress?.assumingMemoryBound(to: UCKeyboardLayout.self) else { return nil }
+            for code in 0..<128 {
+                var deadKeyState: UInt32 = 0
+                var chars = [UniChar](repeating: 0, count: 4)
+                var length = 0
+                let status = UCKeyTranslate(layout, UInt16(code), UInt16(kUCKeyActionDown), 0, UInt32(LMGetKbdType()),
+                                            0, &deadKeyState, chars.count, &length, &chars)
+                if status == noErr, deadKeyState == 0, String(utf16CodeUnits: chars, count: length) == character {
+                    return code
+                }
+            }
+            return nil
+        }
     }
 
     /// Same key and modifiers (the display label doesn't matter).
