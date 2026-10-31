@@ -441,9 +441,12 @@ final class QuickChatPanel: NSPanel {
         if isMaximized, !isSettingFrame { endMaximize() }
     }
 
-    /// Runs the Reset Window Size or Maximize action if `event` is its shortcut.
+    /// Runs the Reset Window Size or Maximize action if `event` is its shortcut. Key repeats
+    /// are swallowed, so holding the shortcut doesn't toggle maximize over and over.
     private func handleLocalShortcut(_ event: NSEvent) -> Bool {
         guard let pressed = Shortcut(event: event) else { return false }
+        guard pressed == resetSizeShortcut || pressed == maximizeShortcut else { return false }
+        if event.isARepeat { return true }
         if pressed == resetSizeShortcut {
             resetSize()
         } else if pressed == maximizeShortcut {
