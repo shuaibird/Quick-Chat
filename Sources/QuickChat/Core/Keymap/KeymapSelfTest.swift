@@ -225,6 +225,24 @@ enum KeymapSelfTest {
             try mini.set(.userDisabled, active: false)
         } catch { check(false, "case 9 threw", "\(error)") }
 
+        print("10. group rolls back when a later override fails with a non-keymap error")
+        do {
+            let (first, _) = fresh(.init(commandID: "hotkeyWindow", key: "Control+Alt+Shift+F19",
+                                         displayName: "Popout Window", stateName: "PopoutWindow"))
+            // State directory path is a regular file, so saving the second override's backup fails.
+            let blocker = first.stateURL.deletingLastPathComponent().appendingPathComponent("blocker")
+            put("", blocker)
+            let second = KeymapOverride(target: ShowMiniController.target, keymapURL: first.keymapURL,
+                                        stateURL: blocker.appendingPathComponent("DisableShowMini.json"))
+            let original = #"[{"command":"hotkeyWindow","key":"Ctrl+Alt+P"}]"#
+            put(original, first.keymapURL)
+            var threw = false
+            do { try KeymapOverrideGroup([first, second]).apply() } catch { threw = true }
+            check(threw, "apply threw")
+            check(try OrderedJSON.parse(text(first.keymapURL) ?? "") == (try OrderedJSON.parse(original)) && !first.hasBackup,
+                  "first override rolled back", text(first.keymapURL) ?? "nil")
+        } catch { check(false, "case 10 threw", "\(error)") }
+
         print(failures == 0 ? "keymap self-test: ALL PASSED" : "keymap self-test: \(failures) FAILED")
         return failures == 0
     }

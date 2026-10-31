@@ -29,20 +29,20 @@ final class KeymapOverrideGroup {
         }
     }
 
-    /// Applies every override, or none: if one fails, the ones already applied are restored.
+    /// Applies every override, or none: if one fails, all are restored (including the failing
+    /// one, which may have written its marker before a later step such as saving state failed).
     func apply() throws {
         overrides = overrides.map { $0.reresolved() } // CODEX_HOME may have changed
-        var applied: [KeymapOverride] = []
         do {
             for keymap in overrides {
                 let outcome = try keymap.apply()
-                applied.append(keymap)
                 keymap.log.info("Applied (\(String(describing: outcome), privacy: .public)) to \(keymap.keymapURL.path, privacy: .public)")
             }
-        } catch let error as KeymapOverride.KeymapError {
-            log.error("Apply failed: \(error.localizedDescription, privacy: .public) [\(error.detail, privacy: .public)]")
-            for keymap in applied.reversed() { _ = try? keymap.restore() }
-            throw error.featureError
+        } catch {
+            let detail = (error as? KeymapOverride.KeymapError)?.detail ?? String(describing: error)
+            log.error("Apply failed: \(error.localizedDescription, privacy: .public) [\(detail, privacy: .public)]")
+            restore()
+            throw (error as? KeymapOverride.KeymapError)?.featureError ?? error
         }
     }
 
