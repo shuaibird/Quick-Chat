@@ -76,10 +76,23 @@ final class QuickChatController: NSObject {
             },
             // The new Space's app can activate just after the Space-change notification.
             center.addObserver(forName: NSWorkspace.didActivateApplicationNotification, object: nil,
-                               queue: .main) { [weak self] _ in
-                MainActor.assumeIsolated { self?.reclaimFocusIfKept() }
+                               queue: .main) { [weak self] note in
+                let app = note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication
+                MainActor.assumeIsolated {
+                    self?.otherAppActivated(app)
+                    self?.reclaimFocusIfKept()
+                }
             },
         ]
+    }
+
+    /// Keeps `previousApp` current while the panel is open, so hiding returns focus to the app
+    /// you're in now; not the one from when the panel opened, which may sit on another Space
+    /// (activating it would switch back there).
+    private func otherAppActivated(_ app: NSRunningApplication?) {
+        guard let app, app.processIdentifier != ProcessInfo.processInfo.processIdentifier,
+              panel?.isVisible == true else { return }
+        previousApp = app
     }
 
     private func spaceDidChange() {
