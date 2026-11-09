@@ -16,6 +16,12 @@ final class QuickChatController: NSObject {
     private var panel: QuickChatPanel?
     private var webView: WKWebView?
     private var previousApp: NSRunningApplication?
+    /// When the panel was last shown / last lost key, and until when a Space switch may not
+    /// take its focus (see `spaceDidChange()`).
+    private var shownAt: Date?
+    private var lostKeyAt: Date?
+    private var keepFocusUntil: Date?
+    private var workspaceObservers: [NSObjectProtocol] = []
     /// Where each in-flight download is being written, for "reveal in Finder" when it finishes.
     private var downloadDestinations: [ObjectIdentifier: URL] = [:]
 
@@ -34,10 +40,10 @@ final class QuickChatController: NSObject {
     /// Resizes the panel back to `QuickChatPanel.defaultSize` (no-op if it was never built).
     func resetSize() { panel?.resetSize() }
 
-    /// Hides the panel whenever it's visible (focused or not), otherwise shows it. Focus goes
-    /// back to the previous app only if the panel had it.
+    /// Hides the panel whenever it's visible on the current Space (focused or not), otherwise
+    /// shows it here. Focus goes back to the previous app only if the panel had it.
     func toggle() {
-        if let panel, panel.isVisible {
+        if let panel, panel.isVisible, panel.isOnActiveSpace {
             hide(restoreFocus: panel.isKeyWindow && NSApp.isActive)
         } else {
             show()
@@ -48,15 +54,69 @@ final class QuickChatController: NSObject {
         let panel = self.panel ?? makePanel()
         let front = NSWorkspace.shared.frontmostApplication
         if front?.processIdentifier != ProcessInfo.processInfo.processIdentifier { previousApp = front }
-        NSApp.activate()
+        // Don't activate the app: activation is only a request since macOS 14, and after a
+        // Space switch macOS hands focus on to another app (Finder, the full-screen app) and the
+        // panel loses the keyboard. A non-activating panel takes key without it, like Spotlight.
         panel.makeKeyAndOrderFront(nil)
         panel.makeFirstResponder(webView)
         focusComposer()
+        shownAt = .now
+    }
+
+    /// A Space switch makes macOS activate an app on the new Space (Finder on the desktop, the
+    /// full-screen app), which takes the keyboard from the panel; that includes a switch still
+    /// landing just after ⌥Space. If the panel had focus (or was just shown), take it back.
+    private func observeSpaceChanges() {
+        guard workspaceObservers.isEmpty else { return }
+        let center = NSWorkspace.shared.notificationCenter
+        workspaceObservers = [
+            center.addObserver(forName: NSWorkspace.activeSpaceDidChangeNotification, object: nil,
+                               queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { self?.spaceDidChange() }
+            },
+            // The new Space's app can activate just after the Space-change notification.
+            center.addObserver(forName: NSWorkspace.didActivateApplicationNotification, object: nil,
+                               queue: .main) { [weak self] note in
+                let app = note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication
+                MainActor.assumeIsolated {
+                    self?.otherAppActivated(app)
+                    self?.reclaimFocusIfKept()
+                }
+            },
+        ]
+    }
+
+    /// Keeps `previousApp` current while the panel is open, so hiding returns focus to the app
+    /// you're in now; not the one from when the panel opened, which may sit on another Space
+    /// (activating it would switch back there).
+    private func otherAppActivated(_ app: NSRunningApplication?) {
+        guard let app, app.processIdentifier != ProcessInfo.processInfo.processIdentifier,
+              panel?.isVisible == true else { return }
+        previousApp = app
+    }
+
+    private func spaceDidChange() {
+        guard let panel, panel.isVisible else { return }
+        let recent = { (date: Date?) in date.map { Date.now.timeIntervalSince($0) < 1 } ?? false }
+        guard panel.isKeyWindow || recent(lostKeyAt) || recent(shownAt) else { return }
+        keepFocusUntil = .now.addingTimeInterval(1)
+        reclaimFocusIfKept()
+    }
+
+    private func reclaimFocusIfKept() {
+        guard let until = keepFocusUntil, Date.now < until,
+              let panel, panel.isVisible, panel.isOnActiveSpace else { return }
+        DispatchQueue.main.async { [weak self] in
+            guard let self, let panel = self.panel, panel.isVisible, !panel.isKeyWindow else { return }
+            panel.makeKeyAndOrderFront(nil)
+            panel.makeFirstResponder(self.webView)
+        }
     }
 
     /// `restoreFocus`: give focus back to the app that was frontmost before showing.
     func hide(restoreFocus: Bool) {
         guard let panel, panel.isVisible else { return }
+        keepFocusUntil = nil
         panel.orderOut(nil)
         if restoreFocus { previousApp?.activate() }
     }
@@ -86,6 +146,11 @@ final class QuickChatController: NSObject {
     private func makePanel() -> QuickChatPanel {
         let panel = QuickChatPanel(contentRect: NSRect(origin: .zero, size: QuickChatPanel.defaultSize))
         panel.onCancel = { [weak self] in self?.hide(restoreFocus: true) }
+        panel.onResignKey = { [weak self] in
+            self?.lostKeyAt = .now
+            self?.reclaimFocusIfKept()
+        }
+        observeSpaceChanges()
         panel.resetSizeShortcut = resetSizeShortcut
         panel.maximizeShortcut = maximizeShortcut
 
@@ -290,6 +355,13 @@ final class QuickChatPanel: NSPanel {
     /// squat look of the new app's 470-wide window cut down to 560 tall.
     static let defaultSize = NSSize(width: 420, height: 560)
     var onCancel: (() -> Void)?
+    var onResignKey: (() -> Void)?
+
+    override func resignKey() {
+        super.resignKey()
+        onResignKey?()
+    }
+
     /// Local key combo that calls `resetSize()` while the panel is key (default ⌘O).
     var resetSizeShortcut: Shortcut? = .commandO
     /// Local key combo that calls `toggleMaximize()` while the panel is key (default ⌘F).
@@ -314,13 +386,16 @@ final class QuickChatPanel: NSPanel {
 
     init(contentRect: NSRect) {
         super.init(contentRect: contentRect,
-                   styleMask: [.titled, .closable, .resizable, .fullSizeContentView],
+                   styleMask: [.titled, .closable, .resizable, .fullSizeContentView, .nonactivatingPanel],
                    backing: .buffered, defer: false)
         title = "ChatGPT"
         titleVisibility = .hidden
         titlebarAppearsTransparent = true
-        // No full screen or tiling: the green button shows the plain zoom glyph and only maximizes.
-        collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .fullScreenNone, .fullScreenDisallowsTiling]
+        // .fullScreenAuxiliary lets the panel show over another app's full-screen Space. Don't add
+        // .fullScreenNone: the full-screen behaviors are mutually exclusive and it cancels
+        // .fullScreenAuxiliary (issue #7). As an auxiliary window it can't go full screen itself,
+        // so the green button still only maximizes.
+        collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .fullScreenDisallowsTiling]
         for button in [NSWindow.ButtonType.closeButton, .miniaturizeButton, .zoomButton] {
             standardWindowButton(button)?.isHidden = !Self.trafficLights.contains(button)
         }
