@@ -6,9 +6,12 @@ import WebKit
 @MainActor
 final class QuickChatController: NSObject {
     private static let chatURL = URL(string: "https://chatgpt.com/")!
-    /// Hosts that stay inside the panel (chat + sign-in flows); other links open in the browser.
-    private static let inPanelHosts = ["chatgpt.com", "openai.com", "auth0.com", "google.com", "apple.com",
-                                       "microsoftonline.com", "live.com", "microsoft.com"]
+    /// OpenAI's sign-in hosts (and their subdomains): where sign-in starts from a chatgpt.com page.
+    private static let openAISignInHosts = ["auth.openai.com", "auth0.openai.com"]
+    /// Hidden longer than this while off ChatGPT (e.g. a help page reached from a sign-in page),
+    /// the panel goes back to the chat when shown. Shorter keeps a sign-in in progress, such as
+    /// while copying a code from another app.
+    private static let returnToChatAfter: TimeInterval = 5 * 60
     private static let safariUserAgent =
         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Safari/605.1.15"
 
@@ -21,6 +24,8 @@ final class QuickChatController: NSObject {
     private var shownAt: Date?
     private var lostKeyAt: Date?
     private var keepFocusUntil: Date?
+    /// When the panel was last hidden (see `returnToChatAfter`).
+    private var hiddenAt: Date?
     private var workspaceObservers: [NSObjectProtocol] = []
     /// Where each in-flight download is being written, for "reveal in Finder" when it finishes.
     private var downloadDestinations: [ObjectIdentifier: URL] = [:]
@@ -53,11 +58,22 @@ final class QuickChatController: NSObject {
         let panel = self.panel ?? makePanel()
         let front = NSWorkspace.shared.frontmostApplication
         if front?.processIdentifier != ProcessInfo.processInfo.processIdentifier { previousApp = front }
-        if reloadOnShow, let webView {
-            reloadOnShow = false
-            crashReloads = []
-            reload(webView)
+        if let webView {
+            // Off ChatGPT after a long hide: back to the chat, which also stands in for a crash retry.
+            let returnToChat = webView.url?.host.map { !Self.isChatGPTHost($0) } == true
+                && hiddenAt.map { Date.now.timeIntervalSince($0) > Self.returnToChatAfter } == true
+            if returnToChat {
+                log.info("Off ChatGPT since the panel was hidden; going back to the chat")
+                webView.load(URLRequest(url: Self.chatURL))
+            } else if reloadOnShow {
+                reload(webView)
+            }
+            if returnToChat || reloadOnShow {
+                reloadOnShow = false
+                crashReloads = []
+            }
         }
+        hiddenAt = nil
         // Don't activate the app: activation is only a request since macOS 14, and after a
         // Space switch macOS hands focus on to another app (Finder, the full-screen app) and the
         // panel loses the keyboard. A non-activating panel takes key without it, like Spotlight.
@@ -122,6 +138,7 @@ final class QuickChatController: NSObject {
         guard let panel, panel.isVisible else { return }
         keepFocusUntil = nil
         panel.orderOut(nil)
+        hiddenAt = .now
         if restoreFocus { previousApp?.activate() }
     }
 
@@ -152,6 +169,8 @@ final class QuickChatController: NSObject {
     private func makePanel() -> QuickChatPanel {
         let panel = QuickChatPanel(contentRect: NSRect(origin: .zero, size: QuickChatPanel.defaultSize))
         panel.onCancel = { [weak self] in self?.hide(restoreFocus: true) }
+        panel.onGoBack = { [weak self] in self?.webView?.goBack() }
+        panel.onGoForward = { [weak self] in self?.webView?.goForward() }
         panel.onResignKey = { [weak self] in
             self?.lostKeyAt = .now
             self?.reclaimFocusIfKept()
@@ -257,26 +276,33 @@ final class QuickChatController: NSObject {
         return candidate
     }
 
-    private static func staysInPanel(_ url: URL?) -> Bool {
-        guard let host = url?.host?.lowercased() else { return true } // about:blank, data:, etc.
-        return inPanelHosts.contains { host == $0 || host.hasSuffix("." + $0) }
+    /// Whether a link to `url`, clicked on the page `source`, opens in the browser. Decided by
+    /// where the link was clicked, not by a list of destinations: answers only appear on
+    /// chatgpt.com, so a link from there that leaves ChatGPT (and isn't its sign-in) goes to the
+    /// browser. Any other page in the panel is part of a sign-in flow (Google, Apple, Microsoft,
+    /// SSO), whose links stay in the panel whatever host they use.
+    private static func opensInBrowser(_ url: URL?, from source: URL?) -> Bool {
+        guard let host = url?.host?.lowercased() else { return false } // about:blank, data:, etc.
+        guard let sourceHost = source?.host, isChatGPTHost(sourceHost) else { return false }
+        let isOpenAISignIn = openAISignInHosts.contains { host == $0 || host.hasSuffix("." + $0) }
+        return !isChatGPTHost(host) && !isOpenAISignIn
     }
 }
 
 // MARK: - WebKit delegates
 
 extension QuickChatController: WKUIDelegate, WKNavigationDelegate, WKDownloadDelegate {
-    /// `window.open` / target=_blank: sign-in pages stay in the panel, everything else goes to the browser.
+    /// `window.open` / target=_blank: opens in the panel, unless `opensInBrowser` sends it to the browser.
     func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration,
                  for navigationAction: WKNavigationAction, windowFeatures: WKWindowFeatures) -> WKWebView? {
         guard let url = navigationAction.request.url else { return nil }
         if Self.isGeneratedFile(url) {
             // window.open(blob:/data:) would otherwise replace the chat in the panel.
             webView.startDownload(using: navigationAction.request) { $0.delegate = self }
-        } else if Self.staysInPanel(url) {
-            webView.load(navigationAction.request)
-        } else {
+        } else if Self.opensInBrowser(url, from: webView.url) {
             NSWorkspace.shared.open(url)
+        } else {
+            webView.load(navigationAction.request)
         }
         return nil
     }
@@ -291,7 +317,7 @@ extension QuickChatController: WKUIDelegate, WKNavigationDelegate, WKDownloadDel
             return
         }
         if navigationAction.targetFrame?.isMainFrame == true, navigationAction.navigationType == .linkActivated,
-           !Self.staysInPanel(url), let url {
+           Self.opensInBrowser(url, from: webView.url), let url {
             NSWorkspace.shared.open(url)
             decisionHandler(.cancel)
             return
@@ -395,6 +421,9 @@ final class QuickChatPanel: NSPanel {
     static let defaultSize = NSSize(width: 420, height: 560)
     var onCancel: (() -> Void)?
     var onResignKey: (() -> Void)?
+    /// ⌘[ / ⌘] while the panel is key: the browsers' Back and Forward.
+    var onGoBack: (() -> Void)?
+    var onGoForward: (() -> Void)?
 
     override func resignKey() {
         super.resignKey()
@@ -576,14 +605,19 @@ final class QuickChatPanel: NSPanel {
 
     override func close() { onCancel?() }
 
-    /// ⌘W hides; the local shortcuts are caught here too, ahead of the web view (which
-    /// otherwise claims ⌘ combos).
+    /// ⌘W hides and ⌘[ / ⌘] go back / forward; the local shortcuts are caught here too, ahead
+    /// of the web view (which otherwise claims ⌘ combos). The shortcut window refuses these
+    /// combos; a local shortcut saved with one before that still wins, as it's checked first.
+    /// Matched by character, like menu key equivalents, so they work on any keyboard layout.
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
         if handleLocalShortcut(event) { return true }
-        if event.modifierFlags.intersection(.deviceIndependentFlagsMask) == .command,
-           event.charactersIgnoringModifiers == "w" {
-            onCancel?()
-            return true
+        if event.modifierFlags.intersection(.deviceIndependentFlagsMask) == .command {
+            switch event.charactersIgnoringModifiers {
+            case "w": onCancel?(); return true
+            case "[": onGoBack?(); return true
+            case "]": onGoForward?(); return true
+            default: break
+            }
         }
         return super.performKeyEquivalent(with: event)
     }
