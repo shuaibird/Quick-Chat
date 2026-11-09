@@ -2,7 +2,7 @@
 
 **The ⌥Space chat bar we all loved in ChatGPT Classic, brought to the new ChatGPT app.**
 
-Press ⌥Space anywhere on your Mac, ask a quick question, and get a plain ChatGPT chat in a small floating panel: no agent task, no Work allowance used.
+Press ⌥Space anywhere on your Mac, ask a quick question, and get a plain ChatGPT chat in a small floating panel: no agent task, and (for now) no Work or Codex usage.
 
 Quick Chat is a small menu-bar app for macOS. It works alongside the new ChatGPT desktop app (and frees ⌥Space from its Mini shortcut), but it doesn't need it: without any ChatGPT app installed, it runs on its own as a standalone quick chat.
 
@@ -20,14 +20,19 @@ The new ChatGPT desktop app (Chat, Work and Codex) works differently:
 - **The experimental Popout Window** (Settings → Experimental features) also starts Work/Codex agent tasks.
 - **Plain chat is only reachable inside the app window.** There is no system-wide shortcut to it.
 
-That matters because the two kinds of usage are metered differently. Work and Codex share one usage allowance with a 5-hour window and a weekly limit, while Chat has its own model availability and message limits ([OpenAI: Managing usage in Work and Codex](https://help.openai.com/en/articles/20001516)). A quick question asked through Mini counts against the agent allowance you may want to keep for real tasks.
+That matters because, today, the two kinds of usage are metered differently. Work and Codex share one usage allowance with a 5-hour window and a weekly limit, while Chat has its own model availability and message limits ([OpenAI: Managing usage in Work and Codex](https://help.openai.com/en/articles/20001516)). A quick question asked through Mini counts against the agent allowance you may want to keep for real tasks.
 
-Why not just keep using ChatGPT Classic? Its chat bar is great, but Classic is falling behind:
+#### Announced, not yet live (November 2026)
 
+OpenAI has told users (by email) that it plans to combine Chat and Work, and to replace the separate limits with one allowance shared by ChatGPT and Codex. Instant won't count against it. Neither change has a date yet. Once the shared allowance is live, only Instant answers in Quick Chat stay off it, and Quick Chat's main value becomes ⌥Space for a plain chat.
+
+Why not just keep using ChatGPT Classic? Its chat bar is great, but Classic is going away:
+
+- **It retires on January 30, 2027**, per OpenAI's notice in the app. After that, the ⌥Space chat bar has no official replacement.
 - **New features skip it.** OpenAI still ships model updates and bug fixes, but says new features may come only to the new app ([OpenAI: Moving to the new ChatGPT desktop app](https://help.openai.com/en/articles/20001276)). Classic hasn't had a new build since July 2026, and in daily use its chat bar has become flaky.
 - **It can't show Intelligent UI**, GPT-6's answers that mix text, visuals and interactive elements. In OpenAI's words: "The older ChatGPT desktop apps for macOS and Windows do not support these capabilities; use ChatGPT on the web instead." ([OpenAI: GPT-6 and other models in ChatGPT](https://help.openai.com/en/articles/20001354-gpt-6-and-other-models-in-chatgpt))
 
-Quick Chat *is* ChatGPT on the web, so you keep the ⌥Space chat bar and get every new web feature the day it ships.
+Quick Chat *is* ChatGPT on the web, so you keep the ⌥Space chat bar after Classic retires and get every new web feature the day it ships.
 
 Quick Chat fills the gap the simple way: it shows chatgpt.com in a small floating panel, so every message is a regular ChatGPT chat.
 
@@ -186,7 +191,7 @@ up automatically.
 - The Show Mini command id (`openAvatarOverlay`) is undocumented. A ChatGPT update may rename it, and the shortcut handling would stop working until Quick Chat is updated.
 - ChatGPT must restart before a shortcut change takes effect.
 
-**The usage benefit may not last.** Chat and Work are expected to move toward one experience. If that brings a shared allowance, Quick Chat loses its main advantage over Mini and becomes just a floating window.
+**The usage benefit will narrow** once OpenAI's planned shared allowance goes live (see [Announced, not yet live](#announced-not-yet-live-november-2026)). Only Instant answers will stay off it.
 
 **Ad-hoc signed.** The release isn't signed with an Apple Developer ID or notarized. macOS treats each new build as a different app, so permissions such as microphone access must be granted again after every update.
 
