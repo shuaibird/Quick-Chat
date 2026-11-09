@@ -54,17 +54,16 @@ final class ShowMiniController {
     // MARK: Mini's shortcut
 
     /// The accelerators Show Mini uses when it isn't unbound by us: the user's own entries
-    /// (from our backup while we hold the override), else ChatGPT's default. Empty means
-    /// the user unbound it themselves.
+    /// (or the legacy alias's), else ChatGPT's default. Empty means the user unbound it themselves.
     var userAccelerators: [String] {
         let override = keymap.overrides[0]
-        let entries: [OrderedJSON]
+        var entries = override.currentEntries() ?? []
         if let backup = override.loadState().backup {
-            entries = backup.priorEntries.compactMap { try? OrderedJSON.parse($0) }
-            if entries.isEmpty { return [Self.defaultAccelerator] }
-            return Self.accelerators(in: entries)
+            // While we hold the override, our marker stands in for the backed-up entries.
+            // Legacy alias entries stay in the file, so they still count once those are back.
+            entries = entries.filter { !override.isOurs($0) }
+                + backup.priorEntries.compactMap { try? OrderedJSON.parse($0) }
         }
-        entries = override.currentEntries() ?? []
         let relevant = KeymapOverride.effectiveEntries(for: Self.target.commandID,
                                                        legacy: Self.target.legacyCommandID, in: entries)
         if relevant.isEmpty { return [Self.defaultAccelerator] }

@@ -36,12 +36,12 @@ final class QuickChatFeature: Feature {
     }
 
     func disable() {
+        isEnabled = false // first: closing the recorder below must not re-register the hotkey
         hotKey?.unregister()
         hotKey = nil
         recorder.close()
         chat.tearDown()
         try? showMini.set(.quickChatShortcut, active: false)
-        isEnabled = false
         log.info("Disabled")
     }
 
@@ -80,7 +80,12 @@ final class QuickChatFeature: Feature {
             self?.chat.maximizeShortcut = new
             new.saveAsMaximize()
         }, onClose: { [weak self] in
-            guard let self, self.isEnabled else { return }
+            guard let self else { return }
+            guard self.isEnabled else {
+                // Turned off while recording: keep the choice; the next enable() registers it.
+                self.shortcut.save()
+                return
+            }
             do {
                 try self.registerHotKey()
                 try self.showMini.set(.quickChatShortcut, active: self.showMini.conflicts(with: self.shortcut))
