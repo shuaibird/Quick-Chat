@@ -176,6 +176,7 @@ up automatically.
 **It's a web wrapper.**
 - It runs chatgpt.com in a web view, not a native ChatGPT client. You sign in separately from any ChatGPT app.
 - Google sign-in works only because the panel identifies itself as Safari. Google blocks sign-in from embedded web views and may detect this at any time. Email, Apple or Microsoft sign-in avoid that risk.
+- Passkeys and security keys don't work in the panel. macOS allows them only in web browsers. If a sign-in page offers a passkey, choose **Try another way** and use your password or a code instead.
 - You get the website's interface, not Classic's native chat UI. Your chats are regular ChatGPT conversations in your web history.
 - When chatgpt.com changes, the compact layout or focusing the message box can break.
 
