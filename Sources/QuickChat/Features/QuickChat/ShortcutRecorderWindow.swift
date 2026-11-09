@@ -1,4 +1,5 @@
 import AppKit
+import Carbon.HIToolbox
 
 /// Small window for choosing Quick Chat's shortcuts: the global toggle and the local
 /// (panel-focused) Reset Window Size and Maximize. The caller unregisters its global hotkey while this is
@@ -63,8 +64,31 @@ final class ShortcutRecorderWindow: NSObject, NSWindowDelegate {
 
     func close() { window?.close() }
 
-    /// Why `new` can't go in `field`: another of the three fields already has it.
+    /// Whether the window is open (a recording session is in progress).
+    var isOpen: Bool { window?.isVisible == true }
+
+    /// Brings the open window forward without starting a new session.
+    func bringToFront() {
+        NSApp.activate()
+        window?.makeKeyAndOrderFront(nil)
+    }
+
+    /// Standard editing and window combos (see `EditMenu`, `QuickChatPanel`); taking one would
+    /// break it in the panel, or everywhere for the global shortcut. Matched by key character,
+    /// as menu key equivalents are, so they hold on any keyboard layout.
+    private static let reserved: [(key: String, modifiers: Int, name: String)] = [
+        ("X", cmdKey, "Cut"), ("C", cmdKey, "Copy"), ("V", cmdKey, "Paste"),
+        ("V", cmdKey | optionKey | shiftKey, "Paste and Match Style"), ("A", cmdKey, "Select All"),
+        ("Z", cmdKey, "Undo"), ("Z", cmdKey | shiftKey, "Redo"), ("W", cmdKey, "Close"), ("Q", cmdKey, "Quit"),
+    ]
+
+    /// Why `new` can't go in `field`: it's a reserved combo, or another of the three fields already has it.
     private func conflict(_ new: Shortcut, for field: RecorderField) -> String? {
+        if let combo = Self.reserved.first(where: {
+            UInt32($0.modifiers) == new.carbonModifiers && new.keyLabel?.uppercased() == $0.key
+        }) {
+            return "\(new.displayString) is \(combo.name).\nPick another combo."
+        }
         let names: [(RecorderField, String)] = [
             (recorder, "the Quick Chat shortcut"), (resetSizeRecorder, "Reset Window Size"), (maximizeRecorder, "Maximize"),
         ]
