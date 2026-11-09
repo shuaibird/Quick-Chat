@@ -73,13 +73,14 @@ final class ShortcutRecorderWindow: NSObject, NSWindowDelegate {
         window?.makeKeyAndOrderFront(nil)
     }
 
-    /// Standard editing and window combos (see `EditMenu`, `QuickChatPanel`); taking one would
-    /// break it in the panel, or everywhere for the global shortcut. Matched by key character,
-    /// as menu key equivalents are, so they hold on any keyboard layout.
+    /// Standard editing, window and navigation combos (see `EditMenu`, `QuickChatPanel`);
+    /// taking one would break it in the panel, or everywhere for the global shortcut. Matched
+    /// by key character, as menu key equivalents are, so they hold on any keyboard layout.
     private static let reserved: [(key: String, modifiers: Int, name: String)] = [
         ("X", cmdKey, "Cut"), ("C", cmdKey, "Copy"), ("V", cmdKey, "Paste"),
         ("V", cmdKey | optionKey | shiftKey, "Paste and Match Style"), ("A", cmdKey, "Select All"),
         ("Z", cmdKey, "Undo"), ("Z", cmdKey | shiftKey, "Redo"), ("W", cmdKey, "Close"), ("Q", cmdKey, "Quit"),
+        ("[", cmdKey, "Back"), ("]", cmdKey, "Forward"),
     ]
 
     /// Why `new` can't go in `field`: it's a reserved combo, or another of the three fields already has it.

@@ -606,9 +606,9 @@ final class QuickChatPanel: NSPanel {
     override func close() { onCancel?() }
 
     /// ⌘W hides and ⌘[ / ⌘] go back / forward; the local shortcuts are caught here too, ahead
-    /// of the web view (which otherwise claims ⌘ combos). A local shortcut the user set to one
-    /// of these combos wins, as it's checked first. Matched by character, like menu key
-    /// equivalents, so they work on any keyboard layout.
+    /// of the web view (which otherwise claims ⌘ combos). The shortcut window refuses these
+    /// combos; a local shortcut saved with one before that still wins, as it's checked first.
+    /// Matched by character, like menu key equivalents, so they work on any keyboard layout.
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
         if handleLocalShortcut(event) { return true }
         if event.modifierFlags.intersection(.deviceIndependentFlagsMask) == .command {
