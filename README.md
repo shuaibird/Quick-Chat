@@ -46,6 +46,7 @@ Two features, both off until you turn them on from the menu-bar icon. Your choic
 - The panel is 420×560 by default, so chatgpt.com uses its compact layout. It is resizable; the size and position are remembered. The green title-bar button (or a title-bar double-click, or ⌘F) maximizes the panel to fill the screen, leaving the menu bar and Dock visible, and restores your size on a second click. ⌘O resets it to the default size.
 - It stays on top of other windows and doesn't hide when you click elsewhere. The shortcut, Esc, ⌘W or the close button hides it.
 - Reopening the panel returns to the conversation you left. Press ⇧⌘O for a new chat.
+- ⌘[ and ⌘] go back and forward, as in a browser. If a sign-in page took you somewhere else, reopening the panel after 5 minutes or more returns to the chat.
 - Sign in once inside the panel. **Sign Out of Quick Chat** clears the panel's website data.
 - Voice works; macOS asks for microphone access the first time.
 - It doesn't need the ChatGPT desktop app. If the new app isn't installed, the Show Mini options are simply unavailable and the rest works the same.
@@ -63,7 +64,7 @@ chatgpt.com has built-in keyboard shortcuts, and they all reach the panel. Toget
 | ⇧⌘⌫ | Delete chat |
 | ⌘/ | Show all shortcuts (and change them) |
 
-These come from chatgpt.com's own **Keyboard shortcuts** dialog (⌘/), as of October 2026. Quick Chat only reserves Esc and ⌘W (hide the panel) ⌘O (reset the panel size) and ⌘F (maximize or restore the panel).
+These come from chatgpt.com's own **Keyboard shortcuts** dialog (⌘/), as of October 2026. Quick Chat only reserves Esc and ⌘W (hide the panel), ⌘O (reset the panel size), ⌘F (maximize or restore the panel), and ⌘[ and ⌘] (back and forward).
 
 ### Disable Show Mini Shortcut
 
