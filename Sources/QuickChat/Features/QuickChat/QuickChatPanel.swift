@@ -6,9 +6,8 @@ import WebKit
 @MainActor
 final class QuickChatController: NSObject {
     private static let chatURL = URL(string: "https://chatgpt.com/")!
-    /// Hosts that stay inside the panel (chat + sign-in flows); other links open in the browser.
-    private static let inPanelHosts = ["chatgpt.com", "openai.com", "auth0.com", "google.com", "apple.com",
-                                       "microsoftonline.com", "live.com", "microsoft.com"]
+    /// OpenAI's sign-in hosts (and their subdomains): where sign-in starts from a chatgpt.com page.
+    private static let openAISignInHosts = ["auth.openai.com", "auth0.openai.com"]
     private static let safariUserAgent =
         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Safari/605.1.15"
 
@@ -257,26 +256,33 @@ final class QuickChatController: NSObject {
         return candidate
     }
 
-    private static func staysInPanel(_ url: URL?) -> Bool {
-        guard let host = url?.host?.lowercased() else { return true } // about:blank, data:, etc.
-        return inPanelHosts.contains { host == $0 || host.hasSuffix("." + $0) }
+    /// Whether a link to `url`, clicked on the page `source`, opens in the browser. Decided by
+    /// where the link was clicked, not by a list of destinations: answers only appear on
+    /// chatgpt.com, so a link from there that leaves ChatGPT (and isn't its sign-in) goes to the
+    /// browser. Any other page in the panel is part of a sign-in flow (Google, Apple, Microsoft,
+    /// SSO), whose links stay in the panel whatever host they use.
+    private static func opensInBrowser(_ url: URL?, from source: URL?) -> Bool {
+        guard let host = url?.host?.lowercased() else { return false } // about:blank, data:, etc.
+        guard let sourceHost = source?.host, isChatGPTHost(sourceHost) else { return false }
+        let isOpenAISignIn = openAISignInHosts.contains { host == $0 || host.hasSuffix("." + $0) }
+        return !isChatGPTHost(host) && !isOpenAISignIn
     }
 }
 
 // MARK: - WebKit delegates
 
 extension QuickChatController: WKUIDelegate, WKNavigationDelegate, WKDownloadDelegate {
-    /// `window.open` / target=_blank: sign-in pages stay in the panel, everything else goes to the browser.
+    /// `window.open` / target=_blank: opens in the panel, unless `opensInBrowser` sends it to the browser.
     func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration,
                  for navigationAction: WKNavigationAction, windowFeatures: WKWindowFeatures) -> WKWebView? {
         guard let url = navigationAction.request.url else { return nil }
         if Self.isGeneratedFile(url) {
             // window.open(blob:/data:) would otherwise replace the chat in the panel.
             webView.startDownload(using: navigationAction.request) { $0.delegate = self }
-        } else if Self.staysInPanel(url) {
-            webView.load(navigationAction.request)
-        } else {
+        } else if Self.opensInBrowser(url, from: webView.url) {
             NSWorkspace.shared.open(url)
+        } else {
+            webView.load(navigationAction.request)
         }
         return nil
     }
@@ -291,7 +297,7 @@ extension QuickChatController: WKUIDelegate, WKNavigationDelegate, WKDownloadDel
             return
         }
         if navigationAction.targetFrame?.isMainFrame == true, navigationAction.navigationType == .linkActivated,
-           !Self.staysInPanel(url), let url {
+           Self.opensInBrowser(url, from: webView.url), let url {
             NSWorkspace.shared.open(url)
             decisionHandler(.cancel)
             return
