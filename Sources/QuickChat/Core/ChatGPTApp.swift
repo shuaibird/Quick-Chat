@@ -13,8 +13,6 @@ enum ChatGPTApp {
             .first { !$0.isTerminated }
     }
 
-    static var isRunning: Bool { runningApp != nil }
-
     /// Location of the installed app, if any.
     static var appURL: URL? {
         NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleIdentifier)
@@ -48,35 +46,5 @@ enum ChatGPTApp {
         config.activates = activate
         log.info("Launching ChatGPT at \(url.path, privacy: .public)")
         return try await NSWorkspace.shared.openApplication(at: url, configuration: config)
-    }
-
-    /// Opens a URL (e.g. `codex://threads/new?prompt=...`) with the system handler.
-    @discardableResult
-    static func open(url: URL) -> Bool {
-        log.info("Opening URL \(url.absoluteString, privacy: .private)")
-        return NSWorkspace.shared.open(url)
-    }
-
-    /// Observe ChatGPT launches/terminations. Keep the returned token and pass it to
-    /// `removeObserver(_:)` when the feature is disabled.
-    static func observeLifecycle(launched: (@MainActor (NSRunningApplication) -> Void)? = nil,
-                                 terminated: (@MainActor (NSRunningApplication) -> Void)? = nil) -> [NSObjectProtocol] {
-        let center = NSWorkspace.shared.notificationCenter
-        var tokens: [NSObjectProtocol] = []
-        func add(_ name: Notification.Name, _ block: (@MainActor (NSRunningApplication) -> Void)?) {
-            guard let block else { return }
-            tokens.append(center.addObserver(forName: name, object: nil, queue: .main) { note in
-                guard let app = note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication,
-                      app.bundleIdentifier == bundleIdentifier else { return }
-                MainActor.assumeIsolated { block(app) }
-            })
-        }
-        add(NSWorkspace.didLaunchApplicationNotification, launched)
-        add(NSWorkspace.didTerminateApplicationNotification, terminated)
-        return tokens
-    }
-
-    static func removeObservers(_ tokens: [NSObjectProtocol]) {
-        tokens.forEach { NSWorkspace.shared.notificationCenter.removeObserver($0) }
     }
 }

@@ -45,9 +45,6 @@ final class QuickChatFeature: Feature {
         log.info("Disabled")
     }
 
-    /// Resizes the Quick Chat panel back to its default size (same as the Reset Window Size shortcut).
-    func resetSize() { chat.resetSize() }
-
     private func registerHotKey() throws {
         hotKey?.unregister()
         hotKey = try GlobalHotKey(shortcut) { [weak self] in self?.chat.toggle() }

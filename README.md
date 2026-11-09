@@ -151,6 +151,8 @@ Build options (environment variables for `make` or `scripts/build-app.sh`):
 | `VERSION` | latest `v*` git tag, else `0.0.0-dev` | `CFBundleShortVersionString` |
 | `BUNDLE_ID` | `dev.shuaibird.quickchat` | bundle identifier |
 
+To test the keybindings code (uses temp files only): `QUICKCHAT_SELFTEST=keymap .build/debug/QuickChat`
+
 ### Permissions
 
 Quick Chat needs no Accessibility or Automation access. macOS asks for the **microphone**
