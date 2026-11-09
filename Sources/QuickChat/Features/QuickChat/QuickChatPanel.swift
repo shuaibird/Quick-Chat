@@ -187,6 +187,8 @@ final class QuickChatController: NSObject {
         let config = WKWebViewConfiguration()
         config.websiteDataStore = .default()
         config.mediaTypesRequiringUserActionForPlayback = []
+        config.userContentController.addUserScript(WKUserScript(
+            source: Self.noAutocorrectScript, injectionTime: .atDocumentStart, forMainFrameOnly: true))
         let webView = WKWebView(frame: .zero, configuration: config)
         webView.customUserAgent = Self.safariUserAgent
         webView.uiDelegate = self
@@ -195,6 +197,24 @@ final class QuickChatController: NSObject {
         webView.underPageBackgroundColor = .windowBackgroundColor
         return webView
     }
+
+    /// Turns off macOS autocorrect / auto-capitalization (and inline predictions) in chatgpt.com's
+    /// composer. Their suggestion bubble swallows keys while it's up, ⌥Space included, so the
+    /// toggle shortcut stops working. Spell-check underlines stay. Re-applied on DOM changes,
+    /// since the page re-renders the composer.
+    private static let noAutocorrectScript = """
+    (() => {
+      const apply = () => document.querySelectorAll('#prompt-textarea, [contenteditable="true"], textarea')
+        .forEach(el => {
+          if (el.getAttribute('autocorrect') === 'off') return;
+          el.setAttribute('autocorrect', 'off');
+          el.setAttribute('autocapitalize', 'off');
+          el.setAttribute('writingsuggestions', 'false');
+        });
+      new MutationObserver(apply).observe(document, { childList: true, subtree: true });
+      apply();
+    })();
+    """
 
     private func focusComposer() {
         // Best effort: chatgpt.com's composer is a contenteditable #prompt-textarea.
