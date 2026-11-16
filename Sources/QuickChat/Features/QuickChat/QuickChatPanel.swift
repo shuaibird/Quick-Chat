@@ -522,7 +522,34 @@ final class QuickChatPanel: NSPanel {
     @objc private func maximizeButtonClicked(_ sender: Any?) { toggleMaximize() }
 
     /// Title bar double-click / Window ▸ Zoom toggle maximize too, instead of AppKit's own zoom.
-    override func zoom(_ sender: Any?) { toggleMaximize() }
+    override func zoom(_ sender: Any?) {
+        if let event = NSApp.currentEvent, Self.isDoubleClick(event) {
+            titleBarDoubleClicked(event)
+        } else {
+            toggleMaximize()
+        }
+    }
+
+    /// Timestamp of the last double-click acted on, so one double-click toggles only once when
+    /// both AppKit (via `zoom(_:)`) and the header view report it.
+    private var lastDoubleClickTimestamp: TimeInterval?
+
+    /// A double-click on the title bar or header strip. Since macOS 27 AppKit no longer turns a
+    /// double-click on a `mouseDownCanMoveWindow` view into `zoom(_:)`, so the header calls this
+    /// itself. Follows the "Double-click a window's title bar to" setting; the panel can't
+    /// minimize, so Minimize does nothing, like Do Nothing.
+    func titleBarDoubleClicked(_ event: NSEvent) {
+        guard event.timestamp != lastDoubleClickTimestamp else { return }
+        lastDoubleClickTimestamp = event.timestamp
+        switch UserDefaults.standard.string(forKey: "AppleActionOnDoubleClick") {
+        case "None", "Minimize": return
+        default: toggleMaximize()
+        }
+    }
+
+    private static func isDoubleClick(_ event: NSEvent) -> Bool {
+        [.leftMouseDown, .leftMouseUp].contains(event.type) && event.clickCount == 2
+    }
 
     /// Esc (when the page doesn't handle it) hides the panel.
     override func cancelOperation(_ sender: Any?) { onCancel?() }
@@ -623,7 +650,15 @@ final class QuickChatPanel: NSPanel {
     }
 }
 
-/// Header strip that drags the window.
+/// Header strip that drags the window; a double-click on it acts like one on the title bar.
 private final class DraggableView: NSView {
     override var mouseDownCanMoveWindow: Bool { true }
+
+    override func mouseDown(with event: NSEvent) {
+        if event.clickCount == 2, let panel = window as? QuickChatPanel {
+            panel.titleBarDoubleClicked(event)
+            return
+        }
+        super.mouseDown(with: event)
+    }
 }
