@@ -43,7 +43,8 @@ Two features, both off until you turn them on from the menu-bar icon. Your choic
 ### Quick Chat
 
 - A global shortcut (⌥Space by default; change it with **Change Shortcut…**) toggles a floating panel with chatgpt.com inside.
-- The panel is 420×560 by default, so chatgpt.com uses its compact layout. It is resizable; the size and position are remembered. The green title-bar button (or a title-bar double-click, or ⌘F) maximizes the panel to fill the screen, leaving the menu bar and Dock visible, and restores your size on a second click. ⌘O resets it to the default size.
+- The panel is 420×560 by default, so chatgpt.com uses its compact layout. It is resizable and remembers its size. The green title-bar button (or a title-bar double-click, or ⌘F) maximizes the panel to fill the screen, leaving the menu bar and Dock visible, and restores your size on a second click. ⌘O resets it to the default size.
+- **Launch Position** controls where the panel appears each time you reopen it. Center (default), Top, and Bottom use the display under the pointer. Last Position returns to where you left the panel, or centers it on the display under the pointer if the previous display is no longer available. A maximized panel reopens at its previous size.
 - It stays on top of other windows and doesn't hide when you click elsewhere. The shortcut, Esc, ⌘W or the close button hides it.
 - Reopening the panel returns to the conversation you left. Press ⇧⌘O for a new chat.
 - ⌘[ and ⌘] go back and forward, as in a browser. If a sign-in page took you somewhere else, reopening the panel after 5 minutes or more returns to the chat.

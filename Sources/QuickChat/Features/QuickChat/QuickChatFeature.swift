@@ -58,10 +58,24 @@ final class QuickChatFeature: Feature {
         guard isEnabled else { return [] }
         var items: [NSMenuItem] = [
             ActionMenuItem("Change Shortcut… (\(shortcut.displayString))") { [weak self] in self?.editShortcut() },
+            launchPositionMenuItem(),
             ActionMenuItem("Sign Out of Quick Chat") { [weak self] in self?.chat.signOut() },
         ]
         if takesMiniShortcut, let restart = showMini.restartMenuItem() { items.insert(restart, at: 0) }
         return items
+    }
+
+    private func launchPositionMenuItem() -> NSMenuItem {
+        let item = NSMenuItem(title: "Launch Position", action: nil, keyEquivalent: "")
+        let submenu = NSMenu(title: item.title)
+        submenu.autoenablesItems = false
+        for position in QuickChatLaunchPosition.allCases {
+            let option = ActionMenuItem(position.title) { [weak self] in self?.chat.launchPosition = position }
+            option.state = chat.launchPosition == position ? .on : .off
+            submenu.addItem(option)
+        }
+        item.submenu = submenu
+        return item
     }
 
     private func editShortcut() {

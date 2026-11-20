@@ -9,5 +9,6 @@ let package = Package(
             name: "QuickChat",
             path: "Sources/QuickChat"
         ),
+        .testTarget(name: "QuickChatTests", dependencies: ["QuickChat"]),
     ]
 )
