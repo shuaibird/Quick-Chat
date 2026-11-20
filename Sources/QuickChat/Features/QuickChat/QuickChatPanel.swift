@@ -1,4 +1,5 @@
 import AppKit
+import CoreGraphics
 import WebKit
 
 /// Floating Quick Chat in the spirit of ChatGPT Classic's companion chat: chatgpt.com in a
@@ -33,6 +34,12 @@ final class QuickChatController: NSObject {
     private var crashReloads: [Date] = []
     /// Set when crash reloads were given up; the page reloads the next time the panel shows.
     private var reloadOnShow = false
+    private var lastPosition = QuickChatLaunchPosition.SavedPosition.load()
+
+    /// Applied when the panel is next shown, not while it's already open.
+    var launchPosition = QuickChatLaunchPosition.load() {
+        didSet { launchPosition.save() }
+    }
 
     /// Local shortcut (only while the panel is key) that triggers the panel's `resetSize()`.
     var resetSizeShortcut = Shortcut.loadResetSize() {
@@ -56,6 +63,11 @@ final class QuickChatController: NSObject {
 
     func show() {
         let panel = self.panel ?? makePanel()
+        if !panel.isVisible || !panel.isOnActiveSpace {
+            let frame = launchPosition.frame(for: panel.normalFrame.size, displays: Self.displays(),
+                                             mouse: NSEvent.mouseLocation, last: lastPosition)
+            panel.prepareToShow(at: frame ?? panel.normalFrame)
+        }
         let front = NSWorkspace.shared.frontmostApplication
         if front?.processIdentifier != ProcessInfo.processInfo.processIdentifier { previousApp = front }
         if let webView {
@@ -136,6 +148,7 @@ final class QuickChatController: NSObject {
     /// `restoreFocus`: give focus back to the app that was frontmost before showing.
     func hide(restoreFocus: Bool) {
         guard let panel, panel.isVisible else { return }
+        rememberPosition(of: panel.normalFrame)
         keepFocusUntil = nil
         panel.orderOut(nil)
         hiddenAt = .now
@@ -144,7 +157,10 @@ final class QuickChatController: NSObject {
 
     /// Closes the panel and releases the web view (the sign-in session stays in the data store).
     func tearDown() {
-        panel?.orderOut(nil)
+        if let panel, panel.isVisible {
+            rememberPosition(of: panel.normalFrame)
+            panel.orderOut(nil)
+        }
         webView?.stopLoading()
         panel?.contentView = nil
         panel = nil
@@ -188,8 +204,9 @@ final class QuickChatController: NSObject {
         header.heightAnchor.constraint(equalToConstant: 28).isActive = true
         panel.contentView = stack
 
-        if !panel.setFrameUsingName(QuickChatPanel.autosaveName) {
-            center(panel)
+        // Keep the user's saved size, and seed Last Position on upgrade from the old frame.
+        if panel.setFrameUsingName(QuickChatPanel.autosaveName), lastPosition == nil {
+            rememberPosition(of: panel.frame)
         }
         panel.setFrameAutosaveName(QuickChatPanel.autosaveName)
 
@@ -199,13 +216,20 @@ final class QuickChatController: NSObject {
         return panel
     }
 
-    private func center(_ panel: NSPanel) {
-        let mouse = NSEvent.mouseLocation
-        let screen = NSScreen.screens.first { $0.frame.contains(mouse) } ?? NSScreen.main
-        guard let visible = screen?.visibleFrame else { return }
-        let size = panel.frame.size
-        panel.setFrameOrigin(NSPoint(x: visible.midX - size.width / 2,
-                                     y: visible.minY + (visible.height - size.height) * 0.6))
+    private func rememberPosition(of frame: NSRect) {
+        guard let position = QuickChatLaunchPosition.SavedPosition(frame: frame, displays: Self.displays()) else { return }
+        lastPosition = position
+        position.save()
+    }
+
+    private static func displays() -> [QuickChatLaunchPosition.Display] {
+        NSScreen.screens.map { screen in
+            let number = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber
+            // Unlike a display number, a UUID can identify the monitor again after relaunch.
+            let uuid = number.flatMap { CGDisplayCreateUUIDFromDisplayID($0.uint32Value)?.takeRetainedValue() }
+            let id = uuid.map { CFUUIDCreateString(nil, $0) as String }
+            return .init(id: id, frame: screen.frame, visibleFrame: screen.visibleFrame)
+        }
     }
 
     private func makeWebView() -> WKWebView {
@@ -445,10 +469,11 @@ final class QuickChatPanel: NSPanel {
     /// Where the green button sits when minimize is hidden: minimize's slot, so there's no gap.
     private var zoomButtonOrigin: NSPoint?
 
-    /// The user's frame from before maximizing; non-nil while maximized. Hiding and showing
-    /// keep the panel maximized; a relaunch doesn't, as the maximized frame is never autosaved.
+    /// The user's frame from before maximizing; non-nil while maximized. The maximized frame
+    /// is never autosaved. The normal size is used when reopening at the launch position.
     private var restoreFrame: NSRect?
     var isMaximized: Bool { restoreFrame != nil }
+    var normalFrame: NSRect { restoreFrame ?? frame }
     /// Set while the panel changes its own frame, so only user moves/resizes end the maximize.
     private var isSettingFrame = false
 
@@ -554,6 +579,11 @@ final class QuickChatPanel: NSPanel {
     /// Esc (when the page doesn't handle it) hides the panel.
     override func cancelOperation(_ sender: Any?) { onCancel?() }
 
+    func prepareToShow(at frame: NSRect) {
+        if self.frame != frame { setOwnFrame(frame, animate: false) }
+        if isMaximized { endMaximize() }
+    }
+
     /// Fills the screen's visible frame (menu bar and Dock stay visible), or goes back to the
     /// user's frame from before. The panel stays resizable while maximized.
     func toggleMaximize() {
@@ -573,7 +603,7 @@ final class QuickChatPanel: NSPanel {
     /// maximized) but staying on the visible part of the screen. The frame autosave then
     /// persists the new size.
     func resetSize() {
-        let anchor = restoreFrame ?? frame
+        let anchor = normalFrame
         let size = frameRect(forContentRect: NSRect(origin: .zero, size: Self.defaultSize)).size
         var frame = NSRect(x: anchor.minX, y: anchor.maxY - size.height,
                            width: size.width, height: size.height)
@@ -587,11 +617,11 @@ final class QuickChatPanel: NSPanel {
         if isMaximized { endMaximize() }
     }
 
-    /// Animated frame change that doesn't count as the user moving or resizing the panel.
-    private func setOwnFrame(_ frame: NSRect) {
+    /// A frame change that doesn't count as the user moving or resizing the panel.
+    private func setOwnFrame(_ frame: NSRect, animate: Bool = true) {
         isSettingFrame = true
         defer { isSettingFrame = false }
-        setFrame(frame, display: true, animate: true)
+        setFrame(frame, display: true, animate: animate)
     }
 
     /// Leaves the maximized state as is (frame-wise) and resumes autosaving the current frame.
@@ -603,8 +633,9 @@ final class QuickChatPanel: NSPanel {
     }
 
     /// The user moved or resized the maximized panel: that frame becomes their own.
+    /// Ignore frame changes while hidden (e.g. a display was disconnected).
     @objc private func frameDidChange() {
-        if isMaximized, !isSettingFrame { endMaximize() }
+        if isMaximized, !isSettingFrame, isVisible { endMaximize() }
     }
 
     /// Runs the Reset Window Size or Maximize action if `event` is its shortcut. Key repeats
