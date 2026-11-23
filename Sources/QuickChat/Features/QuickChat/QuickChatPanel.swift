@@ -214,6 +214,8 @@ final class QuickChatController: NSObject {
         config.mediaTypesRequiringUserActionForPlayback = []
         config.userContentController.addUserScript(WKUserScript(
             source: Self.noAutocorrectScript, injectionTime: .atDocumentStart, forMainFrameOnly: true))
+        config.userContentController.addUserScript(WKUserScript(
+            source: Self.sidebarModalScript, injectionTime: .atDocumentStart, forMainFrameOnly: true))
         let webView = WKWebView(frame: .zero, configuration: config)
         webView.customUserAgent = Self.safariUserAgent
         webView.uiDelegate = self
@@ -222,6 +224,30 @@ final class QuickChatController: NSObject {
         webView.underPageBackgroundColor = .windowBackgroundColor
         return webView
     }
+
+    /// The narrow sidebar is already an ARIA modal with a focus trap. Its modal helper also
+    /// writes aria-hidden to each background subtree. Each write can synchronously rebuild
+    /// WebKit's accessibility tree. Keep the modal semantics and skip only those redundant
+    /// writes while this specific dialog is open. Nested modals use the site's own handling.
+    private static let sidebarModalScript = """
+    (() => {
+      if (location.hostname !== 'chatgpt.com') return;
+      const setAttribute = Element.prototype.setAttribute;
+      Element.prototype.setAttribute = function (name, value) {
+        if (name === 'aria-hidden' && value === 'true' &&
+            this.getAttribute('data-aria-hidden') === 'true' && !this.hasAttribute(name) &&
+            this.getRootNode() === document) {
+          const sidebar = document.getElementById('browser-sidebar-popover');
+          if (sidebar?.matches('[role="dialog"][aria-modal="true"][data-state="open"]') &&
+              !sidebar.contains(this) && !this.contains(sidebar) &&
+              !document.querySelector('dialog:modal, [aria-modal="true"][data-state="open"]:not(#browser-sidebar-popover)')) {
+            return;
+          }
+        }
+        return Reflect.apply(setAttribute, this, arguments);
+      };
+    })();
+    """
 
     /// Turns off macOS autocorrect / auto-capitalization (and inline predictions) in chatgpt.com's
     /// composer. Their suggestion bubble swallows keys while it's up, ⌥Space included, so the
