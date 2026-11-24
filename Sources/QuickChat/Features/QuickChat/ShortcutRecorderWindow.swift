@@ -79,12 +79,15 @@ final class ShortcutRecorderWindow: NSObject, NSWindowDelegate {
     private static let reserved: [(key: String, modifiers: Int, name: String)] = [
         ("X", cmdKey, "Cut"), ("C", cmdKey, "Copy"), ("V", cmdKey, "Paste"),
         ("V", cmdKey | optionKey | shiftKey, "Paste and Match Style"), ("A", cmdKey, "Select All"),
-        ("Z", cmdKey, "Undo"), ("Z", cmdKey | shiftKey, "Redo"), ("W", cmdKey, "Close"), ("Q", cmdKey, "Quit"),
+        ("Z", cmdKey, "Undo"), ("Z", cmdKey | shiftKey, "Redo"), ("Q", cmdKey, "Quit"),
         ("[", cmdKey, "Back"), ("]", cmdKey, "Forward"),
     ]
 
     /// Why `new` can't go in `field`: it's a reserved combo, or another of the three fields already has it.
     private func conflict(_ new: Shortcut, for field: RecorderField) -> String? {
+        if let command = WindowCommand(shortcut: new) {
+            return "\(new.displayString) is \(command.rawValue).\nPick another combo."
+        }
         if let combo = Self.reserved.first(where: {
             UInt32($0.modifiers) == new.carbonModifiers && new.keyLabel?.uppercased() == $0.key
         }) {

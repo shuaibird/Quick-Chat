@@ -15,7 +15,7 @@ final class QuickChatFeature: Feature {
     private let showMini: ShowMiniController
     private var shortcut = Shortcut.load()
     private var hotKey: GlobalHotKey?
-    private lazy var chat = QuickChatController()
+    private lazy var chat = QuickChatWindows()
     private let recorder = ShortcutRecorderWindow()
 
     init(showMini: ShowMiniController) {
@@ -57,6 +57,9 @@ final class QuickChatFeature: Feature {
     func menuItems() -> [NSMenuItem] {
         guard isEnabled else { return [] }
         var items: [NSMenuItem] = [
+            ActionMenuItem("New Quick Chat Window") { [weak self] in
+                self?.chat.openWindow()
+            },
             ActionMenuItem("Change Shortcut… (\(shortcut.displayString))") { [weak self] in self?.editShortcut() },
             ActionMenuItem("Sign Out of Quick Chat") { [weak self] in self?.chat.signOut() },
         ]
