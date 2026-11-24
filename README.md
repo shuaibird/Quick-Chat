@@ -48,6 +48,7 @@ Two features, both off until you turn them on from the menu-bar icon. Your choic
 - Reopening the panel returns to the conversation you left. Press ⇧⌘O for a new chat.
 - ⌘[ and ⌘] go back and forward, as in a browser. If a sign-in page took you somewhere else, reopening the panel after 5 minutes or more returns to the chat.
 - Sign in once inside the panel. **Sign Out of Quick Chat** clears the panel's website data.
+- Click a chat image to view it in Quick Look. Press Space or Esc to close the preview. Option-click the image to use ChatGPT's viewer, including its Edit and Share controls.
 - Voice works; macOS asks for microphone access the first time.
 - It doesn't need the ChatGPT desktop app. If the new app isn't installed, the Show Mini options are simply unavailable and the rest works the same.
 
