@@ -32,14 +32,17 @@ final class QuickChatController: NSObject {
     /// Set when crash reloads were given up; the page reloads the next time the panel shows.
     private var reloadOnShow = false
     private let cascadeFrom: NSRect?
+    private let initialRequest: URLRequest?
     var onNewWindow: (() -> Void)?
+    var onOpenLinkInNewWindow: ((URLRequest) -> Void)?
     var onClose: (() -> Void)?
     var onCancel: (() -> Void)?
     var onFocus: (() -> Void)?
     var canReclaimFocus: (() -> Bool)?
 
-    init(cascadeFrom: NSRect?) {
+    init(cascadeFrom: NSRect?, initialRequest: URLRequest? = nil) {
         self.cascadeFrom = cascadeFrom
+        self.initialRequest = initialRequest
     }
 
     var frame: NSRect? { panel?.frame }
@@ -211,7 +214,7 @@ final class QuickChatController: NSObject {
 
         self.panel = panel
         self.webView = webView
-        webView.load(URLRequest(url: Self.chatURL))
+        webView.load(initialRequest ?? URLRequest(url: Self.chatURL))
         return panel
     }
 
@@ -305,15 +308,21 @@ final class QuickChatController: NSObject {
 // MARK: - WebKit delegates
 
 extension QuickChatController: WKUIDelegate, WKNavigationDelegate {
-    /// `window.open` / target=_blank: opens in the panel, unless `opensInBrowser` sends it to the browser.
+    /// WebKit also calls this for its "Open Link in New Window" context menu action.
     func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration,
                  for navigationAction: WKNavigationAction, windowFeatures: WKWindowFeatures) -> WKWebView? {
         guard let url = navigationAction.request.url else { return nil }
-        if Self.isGeneratedFile(url) {
+        if navigationAction.shouldPerformDownload || Self.isGeneratedFile(url) {
             // window.open(blob:/data:) would otherwise replace the chat in the panel.
             webView.startDownload(using: navigationAction.request) { $0.delegate = QuickChatDownloads.shared }
         } else if Self.opensInBrowser(url, from: webView.url) {
             NSWorkspace.shared.open(url)
+        } else if navigationAction.request.httpMethod == "GET",
+                  url.scheme == "https", let host = url.host, Self.isChatGPTHost(host),
+                  webView.url?.host.map(Self.isChatGPTHost) == true,
+                  url.path != "/auth", !url.path.hasPrefix("/auth/"),
+                  let onOpenLinkInNewWindow {
+            onOpenLinkInNewWindow(navigationAction.request)
         } else {
             webView.load(navigationAction.request)
         }

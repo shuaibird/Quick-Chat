@@ -32,12 +32,13 @@ final class QuickChatWindows {
         front.show()
     }
 
-    func openWindow() {
+    func openWindow(request: URLRequest? = nil) {
         for window in windows where !window.isVisibleOnActiveSpace { window.show(focused: false) }
-        let window = QuickChatController(cascadeFrom: windows.last?.frame)
+        let window = QuickChatController(cascadeFrom: windows.last?.frame, initialRequest: request)
         window.resetSizeShortcut = resetSizeShortcut
         window.maximizeShortcut = maximizeShortcut
         window.onNewWindow = { [weak self] in self?.openWindow() }
+        window.onOpenLinkInNewWindow = { [weak self] request in self?.openWindow(request: request) }
         window.onCancel = { [weak self] in self?.hideAll() }
         window.onClose = { [weak self, weak window] in
             if let window { self?.close(window) }
