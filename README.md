@@ -44,7 +44,6 @@ Two features, both off until you turn them on from the menu-bar icon. Your choic
 
 - A global shortcut (⌥Space by default; change it with **Change Shortcut…**) toggles all Quick Chat windows together. Hiding them preserves their size, position and conversation.
 - Press ⌘N or choose **New Quick Chat Window** from the menu bar to open a separate conversation. ⌘W or the red close button closes the current window. Esc hides the group.
-- Press ⌘+ (or ⌘=) and ⌘− to adjust the page zoom in the active window.
 - The panel is 420×560 by default, so chatgpt.com uses its compact layout. It is resizable; the size and position are remembered. The green title-bar button (or a title-bar double-click, or ⌘F) maximizes the panel to fill the screen, leaving the menu bar and Dock visible, and restores your size on a second click. ⌘O resets it to the default size.
 - Quick Chat windows stay on top and stay visible when you click elsewhere. Press ⇧⌘O for a new chat in the current window.
 - ⌘[ and ⌘] go back and forward, as in a browser. If a sign-in page took you somewhere else, reopening the panel after 5 minutes or more returns to the chat.
@@ -65,7 +64,7 @@ chatgpt.com has built-in keyboard shortcuts, and they all reach the panel. Toget
 | ⇧⌘⌫ | Delete chat |
 | ⌘/ | Show all shortcuts (and change them) |
 
-These come from chatgpt.com's own **Keyboard shortcuts** dialog (⌘/), as of October 2026. Quick Chat handles the window and zoom commands above, ⌘O (reset the panel size), ⌘F (maximize or restore the panel), and ⌘[ and ⌘] (back and forward).
+These come from chatgpt.com's own **Keyboard shortcuts** dialog (⌘/), as of October 2026. Quick Chat handles the window commands above, ⌘O (reset the panel size), ⌘F (maximize or restore the panel), and ⌘[ and ⌘] (back and forward).
 
 ### Disable Show Mini Shortcut
 

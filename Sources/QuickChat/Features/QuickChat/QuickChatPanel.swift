@@ -181,11 +181,6 @@ final class QuickChatController: NSObject {
         panel.onCancel = { [weak self] in self?.onCancel?() }
         panel.onClose = { [weak self] in self?.onClose?() }
         panel.onNewWindow = { [weak self] in self?.onNewWindow?() }
-        panel.onPageZoom = { [weak self] step in
-            guard let webView = self?.webView else { return }
-            let percent = Int((webView.pageZoom * 100).rounded())
-            webView.pageZoom = CGFloat(min(200, max(50, percent + step * 10))) / 100
-        }
         panel.onBecomeKey = { [weak self] in self?.onFocus?() }
         panel.onGoBack = { [weak self] in self?.webView?.goBack() }
         panel.onGoForward = { [weak self] in self?.webView?.goForward() }
@@ -468,7 +463,6 @@ final class QuickChatPanel: NSPanel {
     var onClose: (() -> Void)?
     var onNewWindow: (() -> Void)?
     var onBecomeKey: (() -> Void)?
-    var onPageZoom: ((Int) -> Void)?
     var savedFrameName: String?
     var onResignKey: (() -> Void)?
     /// ⌘[ / ⌘] while the panel is key: the browsers' Back and Forward.
@@ -698,10 +692,6 @@ final class QuickChatPanel: NSPanel {
             if !event.isARepeat { onNewWindow?() }
         case .close:
             if !event.isARepeat { close() }
-        case .zoomIn:
-            onPageZoom?(1)
-        case .zoomOut:
-            onPageZoom?(-1)
         }
         return true
     }

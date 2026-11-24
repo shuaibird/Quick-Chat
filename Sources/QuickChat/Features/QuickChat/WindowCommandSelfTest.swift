@@ -11,12 +11,6 @@ enum WindowCommandSelfTest {
             (kVK_ANSI_N, cmdKey, "B", nil),
             (kVK_ANSI_N, cmdKey | shiftKey, "Т", nil),
             (kVK_ANSI_N, cmdKey | optionKey, "N", nil),
-            (kVK_ANSI_Equal, cmdKey, "=", .zoomIn),
-            (kVK_ANSI_Equal, cmdKey | shiftKey, "+", .zoomIn),
-            (kVK_ANSI_KeypadPlus, cmdKey, "", .zoomIn),
-            (kVK_ANSI_KeypadMinus, cmdKey, "", .zoomOut),
-            (kVK_ANSI_Equal, cmdKey, "-", .zoomOut),
-            (kVK_ANSI_Minus, cmdKey | shiftKey, "_", nil),
         ]
         var failures = 0
         for (code, modifiers, label, expected) in cases {
