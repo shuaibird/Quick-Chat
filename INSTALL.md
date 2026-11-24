@@ -171,7 +171,7 @@ Tell the user:
 3. Press **⌥Space**. A small panel opens with chatgpt.com. Sign in once inside it. Email,
    Apple or Microsoft sign-in are the most reliable; Google sign-in works today but Google may
    block embedded browsers at any time.
-4. Press ⌥Space, Esc or ⌘W to hide it. **Change Shortcut…** in the menu picks another key.
+4. Press ⌘N for another window and ⌘W to close the current one. Press ⌥Space or Esc to hide all windows. **Change Shortcut…** in the menu picks another global key.
 5. **If the new ChatGPT desktop app is installed**, it also uses ⌥Space (for Show Mini).
    Quick Chat frees that shortcut automatically while it uses it, and offers
    **Restart ChatGPT to Apply**: ChatGPT only reads shortcut changes at launch. Quick Chat
