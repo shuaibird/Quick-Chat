@@ -85,6 +85,9 @@ final class ShortcutRecorderWindow: NSObject, NSWindowDelegate {
 
     /// Why `new` can't go in `field`: it's a reserved combo, or another of the three fields already has it.
     private func conflict(_ new: Shortcut, for field: RecorderField) -> String? {
+        if let command = PageZoomCommand(shortcut: new) {
+            return "\(new.displayString) is \(command.rawValue).\nPick another combo."
+        }
         if let combo = Self.reserved.first(where: {
             UInt32($0.modifiers) == new.carbonModifiers && new.keyLabel?.uppercased() == $0.key
         }) {

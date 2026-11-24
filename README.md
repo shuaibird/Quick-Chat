@@ -46,6 +46,7 @@ Two features, both off until you turn them on from the menu-bar icon. Your choic
 - The panel is 420×560 by default, so chatgpt.com uses its compact layout. It is resizable; the size and position are remembered. The green title-bar button (or a title-bar double-click, or ⌘F) maximizes the panel to fill the screen, leaving the menu bar and Dock visible, and restores your size on a second click. ⌘O resets it to the default size.
 - It stays on top of other windows and doesn't hide when you click elsewhere. The shortcut, Esc, ⌘W or the close button hides it.
 - Reopening the panel returns to the conversation you left. Press ⇧⌘O for a new chat.
+- Press ⌘+ (or ⌘=) and ⌘− to change the page zoom without resizing the panel.
 - ⌘[ and ⌘] go back and forward, as in a browser. If a sign-in page took you somewhere else, reopening the panel after 5 minutes or more returns to the chat.
 - Sign in once inside the panel. **Sign Out of Quick Chat** clears the panel's website data.
 - Voice works; macOS asks for microphone access the first time.

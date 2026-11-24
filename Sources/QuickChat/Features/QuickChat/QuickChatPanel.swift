@@ -214,7 +214,7 @@ final class QuickChatController: NSObject {
         config.mediaTypesRequiringUserActionForPlayback = []
         config.userContentController.addUserScript(WKUserScript(
             source: Self.noAutocorrectScript, injectionTime: .atDocumentStart, forMainFrameOnly: true))
-        let webView = WKWebView(frame: .zero, configuration: config)
+        let webView = QuickChatWebView(frame: .zero, configuration: config)
         webView.customUserAgent = Self.safariUserAgent
         webView.uiDelegate = self
         webView.navigationDelegate = self
